@@ -81,18 +81,21 @@ contract SimpleUniswapV3Staker is ISimpleUniswapV3Staker {
     _;
   }
 
+  /// @inheritdoc ISimpleUniswapV3Staker
   function stakeToken(uint256 tokenId) public virtual override {
     // triggers onERC721Received
     nonfungiblePositionManager.safeTransferFrom(msg.sender, address(this), tokenId);
     emit NFTStaked(msg.sender, tokenId);
   }
 
+  /// @inheritdoc ISimpleUniswapV3Staker
   function stakeTokenFor(uint256 tokenId, address beneficiary) public virtual override {
     // triggers onERC721Received
     nonfungiblePositionManager.safeTransferFrom(beneficiary, address(this), tokenId);
     emit NFTStaked(beneficiary, tokenId);
   }
 
+  /// @inheritdoc IERC721Receiver
   function onERC721Received(
     address,
     address from,
@@ -134,6 +137,7 @@ contract SimpleUniswapV3Staker is ISimpleUniswapV3Staker {
     return this.onERC721Received.selector;
   }
 
+  /// @inheritdoc ISimpleUniswapV3Staker
   function activateStaked(uint256 tokenId) public virtual override {
     // very important require because secondsInside should never be manipulable
     require(stakes[tokenId].secondsInside == type(uint32).max, "activated already!");
@@ -148,6 +152,7 @@ contract SimpleUniswapV3Staker is ISimpleUniswapV3Staker {
     stakes[tokenId].secondsInside = secondsInside;
   }
 
+  /// @inheritdoc ISimpleUniswapV3Staker
   function unstakeToken(uint256 tokenId) public virtual override {
     // cache beneficiary and stake
     address beneficiary = ownerOf[tokenId];
@@ -180,6 +185,7 @@ contract SimpleUniswapV3Staker is ISimpleUniswapV3Staker {
     emit NFTUnstaked(beneficiary, tokenId);
   }
 
+  /// @inheritdoc ISimpleUniswapV3Staker
   function claimReward(uint256 tokenId) public virtual override onlyIfDeposited(tokenId) {
     // call internal update rewards and get reward, seconds and liquidity
     (uint256 reward, uint256 secondsInside, uint256 positionLiquidity) = _calculateRewardAmount(tokenId);
@@ -200,6 +206,7 @@ contract SimpleUniswapV3Staker is ISimpleUniswapV3Staker {
     emit RewardCollected(beneficiary, reward);
   }
 
+  /// @inheritdoc ISimpleUniswapV3Staker
   function refund() public virtual override onlyAfterEnd {
     key.rewardToken.safeTransfer(key.refundee, key.rewardToken.balanceOf(address(this)));
     emit RefundExecuted(key.refundee);
