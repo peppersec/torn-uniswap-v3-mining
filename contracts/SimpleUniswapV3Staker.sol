@@ -48,7 +48,7 @@ contract SimpleUniswapV3Staker is ISimpleUniswapV3Staker {
   // self explanatory
   uint256 public totalDepositedLiquidity;
   /// @notice the amount of reward tokens left in this contract divided by totalDepositedLiquidity
-  uint256 public rewardTokensLeftPerTorn;
+  uint256 public rewardTokensLeftPerLiquidity;
 
   constructor(
     IncentiveKey memory stakingData,
@@ -57,7 +57,7 @@ contract SimpleUniswapV3Staker is ISimpleUniswapV3Staker {
   ) {
     key = stakingData;
     nonfungiblePositionManager = INonfungiblePositionManager(nonfungiblePositionManagerAddress);
-    rewardTokensLeftPerTorn = depositedRewardTokens;
+    rewardTokensLeftPerLiquidity = depositedRewardTokens;
     totalDepositedLiquidity = 1;
   }
 
@@ -115,9 +115,11 @@ contract SimpleUniswapV3Staker is ISimpleUniswapV3Staker {
     // register to depositor
     ownerOf[tokenId] = from;
 
-    // update rewardTokensLeftPerTorn, we're scaling it basically
+    // update rewardTokensLeftPerLiquidity, we're scaling it basically
     // initial case: totalDepositedLiquidity = 1, there will always be 1 (very small) extra to dilution, in comparison to 1e18 small
-    rewardTokensLeftPerTorn = rewardTokensLeftPerTorn.mul(totalDepositedLiquidity).div(totalDepositedLiquidity.add(liquidity));
+    rewardTokensLeftPerLiquidity = rewardTokensLeftPerLiquidity.mul(totalDepositedLiquidity).div(
+      totalDepositedLiquidity.add(liquidity)
+    );
 
     // add liq for calculation
     totalDepositedLiquidity = totalDepositedLiquidity.add(liquidity);
@@ -172,10 +174,11 @@ contract SimpleUniswapV3Staker is ISimpleUniswapV3Staker {
     // handle payouts
     key.rewardToken.safeTransfer(beneficiary, reward);
 
-    // only then update rewardTokensLeftPerTorn
-    rewardTokensLeftPerTorn = rewardTokensLeftPerTorn.sub(reward.div(positionLiquidity)).mul(totalDepositedLiquidity).div(
-      totalDepositedLiquidity.sub(positionLiquidity)
-    );
+    // only then update rewardTokensLeftPerLiquidity
+    rewardTokensLeftPerLiquidity = rewardTokensLeftPerLiquidity
+      .sub(reward.div(positionLiquidity))
+      .mul(totalDepositedLiquidity)
+      .div(totalDepositedLiquidity.sub(positionLiquidity));
 
     emit RewardCollected(beneficiary, reward);
 
@@ -201,7 +204,7 @@ contract SimpleUniswapV3Staker is ISimpleUniswapV3Staker {
     key.rewardToken.safeTransfer(beneficiary, reward);
 
     // decrease total reward tokens left, but only by reward since already accounted for
-    rewardTokensLeftPerTorn = rewardTokensLeftPerTorn.sub(reward.div(positionLiquidity));
+    rewardTokensLeftPerLiquidity = rewardTokensLeftPerLiquidity.sub(reward.div(positionLiquidity));
 
     emit RewardCollected(beneficiary, reward);
   }
@@ -231,7 +234,7 @@ contract SimpleUniswapV3Staker is ISimpleUniswapV3Staker {
 
     // calculate rewards based on liquidity and seconds inside, this will revert if timestamp > endTime or position.secondsInside > secondsInside
     // that would mean no claiming after endTime or if not activated
-    reward = rewardTokensLeftPerTorn.mul(secondsInside.sub(position.secondsInside)).mul(positionLiquidity).div(
+    reward = rewardTokensLeftPerLiquidity.mul(secondsInside.sub(position.secondsInside)).mul(positionLiquidity).div(
       uint256(key.endTime).sub(block.timestamp)
     );
   }
